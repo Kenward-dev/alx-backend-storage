@@ -10,6 +10,9 @@ import uuid
 from typing import Union
 
 class Cache:
+    """
+    Cache class to interact with Redis for storing data.
+    """
     def __init__(self):
         """
         Initializes the Cache class and connects to Redis.
