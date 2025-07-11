@@ -7,15 +7,15 @@ is designed to be used as a simple caching mechanism.
 
 import redis
 import uuid
-from typing import Union
+from typing import Union, Callable, Optional
 
 class Cache:
     """
     A Cache class for storing data in Redis using unique keys.
 
     This class connects to a Redis instance, flushes the database on
-    initialization, and provides a method to store data using a
-    randomly generated UUID key.
+    initialization, and provides methods to store and retrieve data
+    with optional format conversion.
     """
 
     def __init__(self) -> None:
@@ -43,3 +43,47 @@ class Cache:
         key = str(uuid.uuid4())
         self._redis.set(key, data)
         return key
+
+    def get(self,
+            key: str,
+            fn: Optional[Callable[[bytes], Union[str, int, float]]] = None
+            ) -> Union[bytes, str, int, float, None]:
+        """
+        Retrieve data from Redis using a key, with optional conversion.
+
+        Args:
+            key: The key under which the data is stored.
+            fn: Optional callable to convert the data (e.g., decode or cast).
+
+        Returns:
+            The retrieved data (converted if fn is provided), or None
+            if the key does not exist.
+        """
+        data = self._redis.get(key)
+        if data is None:
+            return None
+        return fn(data) if fn else data
+
+    def get_str(self, key: str) -> Optional[str]:
+        """
+        Retrieve data from Redis and decode it as a UTF-8 string.
+
+        Args:
+            key: The key under which the data is stored.
+
+        Returns:
+            The decoded string, or None if the key does not exist.
+        """
+        return self.get(key, fn=lambda d: d.decode("utf-8"))
+
+    def get_int(self, key: str) -> Optional[int]:
+        """
+        Retrieve data from Redis and convert it to an integer.
+
+        Args:
+            key: The key under which the data is stored.
+
+        Returns:
+            The converted integer, or None if the key does not exist.
+        """
+        return self.get(key, fn=lambda d: int(d))
