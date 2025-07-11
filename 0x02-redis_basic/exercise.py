@@ -133,19 +133,24 @@ class Cache:
         """
         Display the history of calls of a particular function.
 
-        The function prints:
-        - How many times it was called
+        It prints:
+        - The number of times the method was called
         - The list of input arguments
         - The corresponding outputs
+
+        Args:
+            method: The method whose history should be displayed.
         """
         r = redis.Redis()
         qualname = method.__qualname__
 
-        calls = r.get(qualname)
-        print(f"{qualname} was called {int(calls or 0)} times:")
+        call_count = r.get(qualname)
+        print(f"{qualname} was called {int(call_count or 0)} times:")
 
         inputs = r.lrange(f"{qualname}:inputs", 0, -1)
         outputs = r.lrange(f"{qualname}:outputs", 0, -1)
 
-        for inp, out in zip(inputs, outputs):
-            print(f"{qualname}(*{inp.decode('utf-8')}) -> {out.decode('utf-8')}")
+        for input_bytes, output_bytes in zip(inputs, outputs):
+            input_str = input_bytes.decode("utf-8")
+            output_str = output_bytes.decode("utf-8")
+            print(f"{qualname}(*{input_str}) -> {output_str}")
