@@ -1,13 +1,32 @@
 #!/usr/bin/env python3
 """
 This module provides a Cache class that interfaces with Redis to store
-data using randomly generated keys. It supports multiple data types and
-is designed to be used as a simple caching mechanism.
+and retrieve data using unique, randomly generated keys. It also includes
+mechanisms to count how many times methods are called using Redis.
 """
 
 import redis
 import uuid
 from typing import Union, Callable, Optional
+from functools import wraps
+
+
+def count_calls(method: Callable) -> Callable:
+    """
+    Decorator that counts how many times a method is called.
+
+    The count is stored in Redis using the method’s qualified name.
+    """
+
+    @wraps(method)
+    def wrapper(self, *args, **kwargs):
+        """Wrapper function that increments call count and calls method."""
+        key = method.__qualname__
+        self._redis.incr(key)
+        return method(self, *args, **kwargs)
+
+    return wrapper
+
 
 class Cache:
     """
@@ -15,7 +34,7 @@ class Cache:
 
     This class connects to a Redis instance, flushes the database on
     initialization, and provides methods to store and retrieve data
-    with optional format conversion.
+    with optional format conversion. It also tracks method usage.
     """
 
     def __init__(self) -> None:
@@ -28,6 +47,7 @@ class Cache:
         self._redis = redis.Redis()
         self._redis.flushdb()
 
+    @count_calls
     def store(self, data: Union[str, bytes, int, float]) -> str:
         """
         Store data in Redis with a randomly generated UUID key.
