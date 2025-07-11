@@ -79,6 +79,7 @@ class Cache:
             The retrieved data (converted if fn is provided), or None
             if the key does not exist.
         """
+        
         data = self._redis.get(key)
         if data is None:
             return None
@@ -107,3 +108,4 @@ class Cache:
             The converted integer, or None if the key does not exist.
         """
         return self.get(key, fn=lambda d: int(d))
+    
