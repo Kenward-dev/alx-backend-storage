@@ -128,3 +128,24 @@ class Cache:
             The converted integer, or None if the key does not exist.
         """
         return self.get(key, fn=lambda d: int(d))
+
+    def replay(method: Callable) -> None:
+        """
+        Display the history of calls of a particular function.
+
+        The function prints:
+        - How many times it was called
+        - The list of input arguments
+        - The corresponding outputs
+        """
+        r = redis.Redis()
+        qualname = method.__qualname__
+
+        calls = r.get(qualname)
+        print(f"{qualname} was called {int(calls or 0)} times:")
+
+        inputs = r.lrange(f"{qualname}:inputs", 0, -1)
+        outputs = r.lrange(f"{qualname}:outputs", 0, -1)
+
+        for inp, out in zip(inputs, outputs):
+            print(f"{qualname}(*{inp.decode('utf-8')}) -> {out.decode('utf-8')}")
