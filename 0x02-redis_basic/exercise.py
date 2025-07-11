@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 This module provides a Cache class that interfaces with Redis to store
-and retrieve data using unique, randomly generated keys. It also includes
-mechanisms to count how many times methods are called using Redis.
+and retrieve data using unique keys. It also includes decorators to track
+method call counts and store call history for debugging and analytics.
 """
 
 import redis
@@ -17,14 +17,34 @@ def count_calls(method: Callable) -> Callable:
 
     The count is stored in Redis using the method’s qualified name.
     """
-
     @wraps(method)
     def wrapper(self, *args, **kwargs):
         """Wrapper function that increments call count and calls method."""
         key = method.__qualname__
         self._redis.incr(key)
         return method(self, *args, **kwargs)
+    return wrapper
 
+
+def call_history(method: Callable) -> Callable:
+    """
+    Decorator that stores the history of inputs and outputs for a method.
+
+    Inputs are stored in a list at '<qualname>:inputs' and
+    outputs at '<qualname>:outputs' using Redis RPUSH.
+    """
+    @wraps(method)
+    def wrapper(self, *args, **kwargs):
+        """Wrapper that logs input and output to Redis lists."""
+        input_key = f"{method.__qualname__}:inputs"
+        output_key = f"{method.__qualname__}:outputs"
+
+        self._redis.rpush(input_key, str(args))
+
+        output = method(self, *args, **kwargs)
+
+        self._redis.rpush(output_key, str(output))
+        return output
     return wrapper
 
 
@@ -47,6 +67,7 @@ class Cache:
         self._redis = redis.Redis()
         self._redis.flushdb()
 
+    @call_history
     @count_calls
     def store(self, data: Union[str, bytes, int, float]) -> str:
         """
@@ -79,7 +100,6 @@ class Cache:
             The retrieved data (converted if fn is provided), or None
             if the key does not exist.
         """
-        
         data = self._redis.get(key)
         if data is None:
             return None
@@ -108,4 +128,3 @@ class Cache:
             The converted integer, or None if the key does not exist.
         """
         return self.get(key, fn=lambda d: int(d))
-    
